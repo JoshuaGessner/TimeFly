@@ -6,10 +6,12 @@ local config = {}
 local timeState = {}
 local ticksSinceSync = 0
 
+local CONFIG_PATH = "Resources/Server/TimeFly/config.json"
+
 -- ─── Configuration ───────────────────────────────────────────────────────────
 
 local function loadConfig()
-    local file = io.open("Resources/Server/TimeFly/config.json", "r")
+    local file = io.open(CONFIG_PATH, "r")
     if file then
         local content = file:read("*all")
         file:close()
@@ -34,6 +36,16 @@ local function initState()
     timeState.frozen    = config.timeFrozen
     timeState.fogDensity = config.fogDensity
     timeState.gravity   = config.gravity
+end
+
+local function saveConfig()
+    local file = io.open(CONFIG_PATH, "w")
+    if file then
+        file:write(jsonEncode(config))
+        file:close()
+    else
+        print("[TimeFly] WARNING: Could not write config to " .. CONFIG_PATH)
+    end
 end
 
 -- ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -125,13 +137,15 @@ function TimeFly_onChatMessage(playerID, playerName, message)
     if cmd == "/timefly" then
         MP.SendChatMessage(playerID,
             "[TimeFly] Commands:\n" ..
-            "  /time [HH:MM|0-1]  - Get or set time of day\n" ..
-            "  /freeze             - Freeze time          (admin)\n" ..
-            "  /unfreeze           - Unfreeze time        (admin)\n" ..
-            "  /dayspeed <secs>    - Seconds per in-game day (admin)\n" ..
-            "  /fog <0-1>          - Fog density          (admin)\n" ..
-            "  /gravity <m/s²>     - Gravity              (admin)\n" ..
-            "  /timefly            - Show this help")
+            "  /time [HH:MM|0-1]       - Get or set time of day\n" ..
+            "  /freeze                  - Freeze time          (admin)\n" ..
+            "  /unfreeze                - Unfreeze time        (admin)\n" ..
+            "  /dayspeed <secs>         - Seconds per in-game day (admin)\n" ..
+            "  /fog <0-1>               - Fog density          (admin)\n" ..
+            "  /gravity <m/s²>          - Gravity              (admin)\n" ..
+            "  /addadmin <playerName>   - Grant admin rights   (admin)\n" ..
+            "  /removeadmin <playerName> - Revoke admin rights  (admin)\n" ..
+            "  /timefly                 - Show this help")
         return 1
     end
 
@@ -233,6 +247,57 @@ function TimeFly_onChatMessage(playerID, playerName, message)
                 string.format("[TimeFly] Gravity set to %.2f m/s² by %s", val, playerName))
         else
             MP.SendChatMessage(playerID, "[TimeFly] Gravity must be a number (e.g. -9.81).")
+        end
+        return 1
+
+    elseif cmd == "/addadmin" then
+        if #args < 2 then
+            MP.SendChatMessage(playerID, "[TimeFly] Usage: /addadmin <playerName>")
+            return 1
+        end
+        local targetName = args[2]
+        for _, adminName in ipairs(config.adminList) do
+            if adminName == targetName then
+                MP.SendChatMessage(playerID,
+                    "[TimeFly] " .. targetName .. " is already an admin.")
+                return 1
+            end
+        end
+        table.insert(config.adminList, targetName)
+        local saved = pcall(saveConfig)
+        MP.SendChatMessage(-1,
+            "[TimeFly] " .. targetName .. " was granted admin rights by " .. playerName)
+        if not saved then
+            MP.SendChatMessage(playerID,
+                "[TimeFly] WARNING: Admin list could not be saved to disk.")
+        end
+        return 1
+
+    elseif cmd == "/removeadmin" then
+        if #args < 2 then
+            MP.SendChatMessage(playerID, "[TimeFly] Usage: /removeadmin <playerName>")
+            return 1
+        end
+        local targetName = args[2]
+        local removed = false
+        for i, adminName in ipairs(config.adminList) do
+            if adminName == targetName then
+                table.remove(config.adminList, i)
+                removed = true
+                break
+            end
+        end
+        if removed then
+            local saved = pcall(saveConfig)
+            MP.SendChatMessage(-1,
+                "[TimeFly] " .. targetName .. " had admin rights revoked by " .. playerName)
+            if not saved then
+                MP.SendChatMessage(playerID,
+                    "[TimeFly] WARNING: Admin list could not be saved to disk.")
+            end
+        else
+            MP.SendChatMessage(playerID,
+                "[TimeFly] " .. targetName .. " is not in the admin list.")
         end
         return 1
     end
