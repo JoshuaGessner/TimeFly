@@ -80,6 +80,8 @@ All commands are typed in the in-game BeamMP chat.
 | `/dayspeed <secs>` | admin | Set day length in real seconds (e.g. `/dayspeed 300` = 5-minute days) |
 | `/fog <0-1>` | admin | Set fog density (e.g. `/fog 0.4`) |
 | `/gravity <value>` | admin | Set gravity in m/s² (e.g. `/gravity -1.6` for Moon-like gravity) |
+| `/addadmin <name>` | admin | Grant admin rights to a player at runtime (change is saved to config) |
+| `/removeadmin <name>` | admin | Revoke admin rights from a player at runtime (change is saved to config) |
 
 ---
 
