@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build client zip
+        run: |
+          cd Resources/Client/TimeFly
+          zip -r ../TimeFly_client.zip lua/
+
+      - name: Build release zip
+        run: |
+          mkdir -p release_build/Resources/Server/TimeFly
+          mkdir -p release_build/Resources/Client
+          cp Resources/Server/TimeFly/main.lua   release_build/Resources/Server/TimeFly/
+          cp Resources/Server/TimeFly/config.json release_build/Resources/Server/TimeFly/
+          cp Resources/Client/TimeFly_client.zip  release_build/Resources/Client/TimeFly.zip
+          cd release_build
+          zip -r ../TimeFly.zip Resources/
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: TimeFly ${{ steps.tag.outputs.tag }}
+          body: |
+            ## Installation
+
+            1. Download `TimeFly.zip` below.
+            2. Extract into your BeamMP server's root folder.
+            3. Edit `Resources/Server/TimeFly/config.json` with your settings.
+            4. Restart the BeamMP server — you should see `[TimeFly] Loaded.` in the log.
+
+            See the [README](https://github.com/${{ github.repository }}#readme) for full documentation.
+          files: TimeFly.zip

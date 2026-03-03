@@ -21,26 +21,17 @@ control time of day, fog, and gravity from the in-game chat.
 
 ## Installation
 
-### Server side
-
-1. Copy `Resources/Server/TimeFly/` into your BeamMP server's `Resources/Server/` folder.
-2. Edit `Resources/Server/TimeFly/config.json` to set your preferred defaults
+1. Download `TimeFly.zip` from the [latest release](../../releases/latest).
+2. Extract the zip into your BeamMP server's root folder.  
+   The archive mirrors the `Resources/` layout, so the files will land in the
+   correct locations automatically:
+   - `Resources/Server/TimeFly/main.lua`
+   - `Resources/Server/TimeFly/config.json`
+   - `Resources/Client/TimeFly.zip` *(client mod — distributed to players automatically by BeamMP)*
+3. Edit `Resources/Server/TimeFly/config.json` to set your preferred defaults
    (see [Configuration](#configuration) below).
-3. Restart the BeamMP server.  
+4. Restart the BeamMP server.  
    You should see `[TimeFly] Loaded.` in the server log.
-
-### Client side
-
-BeamMP automatically distributes the client mod to every connecting player.
-
-1. Copy `Resources/Client/TimeFly/` into your BeamMP server's `Resources/Client/` folder.
-2. No client-side installation is required by players.
-
-> **Tip — packaging as a zip**  
-> Some BeamMP server versions require the client folder to be a `.zip` archive.
-> If automatic distribution does not work, zip the `Resources/Client/TimeFly/`
-> folder (keeping the internal path `lua/ge/extensions/BeamMP/TimeFly.lua`)
-> and place the resulting `TimeFly.zip` file in `Resources/Client/`.
 
 ---
 
@@ -114,9 +105,23 @@ Resources/
       main.lua        ← BeamMP server-side Lua plugin
       config.json     ← Server configuration
   Client/
-    TimeFly/          ← Distributed to clients by BeamMP automatically
+    TimeFly/          ← Source for the client zip (see below)
       lua/ge/extensions/BeamMP/
         TimeFly.lua   ← BeamNG.drive client extension
+
+TimeFly.zip           ← Release archive (extract into your BeamMP server root)
+```
+
+The release `TimeFly.zip` contains:
+
+```
+Resources/
+  Server/
+    TimeFly/
+      main.lua
+      config.json
+  Client/
+    TimeFly.zip       ← Pre-built client archive for BeamMP auto-distribution
 ```
 
 ---
