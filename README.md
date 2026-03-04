@@ -27,20 +27,23 @@ control time of day, fog, and gravity from the in-game chat.
 
     The archive mirrors the `Resources/` layout, so the files will land in the correct locations automatically:
 
-    - `Resources/Server/TimeFly/main.lua`
-    - `Resources/Server/TimeFly/config.lua`
+    - `Resources/Server/TimeFlyS/main.lua`
+    - `Resources/Server/TimeFlyS/config.lua`
     - `Resources/Client/TimeFly.zip` *(client mod — distributed to players automatically by BeamMP)*
 
-1. Edit `Resources/Server/TimeFly/config.lua` to set your preferred defaults (see [Configuration](#configuration) below).
+1. Edit `Resources/Server/TimeFlyS/config.lua` to set your preferred defaults (see [Configuration](#configuration) below).
 1. Restart the BeamMP server.
 
     You should see `[TimeFly] Loaded.` in the server log.
+
+**Folder naming note:**
+You can rename the server plugin folder (for example `Resources/Server/TimeFlyS`) as long as `main.lua` and `config.lua` stay together in that folder. The server script resolves `config.lua` relative to its own location.
 
 ---
 
 ## Configuration
 
-`Resources/Server/TimeFly/config.lua`
+`Resources/Server/TimeFlyS/config.lua`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -106,7 +109,7 @@ BeamNG.drive uses the following time-of-day convention:
 ```text
 Resources/
   Server/
-    TimeFly/
+    TimeFlyS/
       main.lua        ← BeamMP server-side Lua plugin
       config.lua      ← Server configuration
   Client/
@@ -122,7 +125,7 @@ The release `TimeFly.zip` contains:
 ```text
 Resources/
   Server/
-    TimeFly/
+    TimeFlyS/
       main.lua
       config.lua
   Client/

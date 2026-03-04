@@ -14,8 +14,8 @@ The server is authoritative. Clients only apply state received from the server.
 
 ## 2) Current Repository Layout
 
-- `Resources/Server/TimeFly/main.lua` — BeamMP server plugin (authority + admin chat commands)
-- `Resources/Server/TimeFly/config.lua` — runtime defaults and admin list
+- `Resources/Server/TimeFlyS/main.lua` — BeamMP server plugin (authority + admin chat commands)
+- `Resources/Server/TimeFlyS/config.lua` — runtime defaults and admin list
 - `Resources/Client/TimeFly/lua/ge/extensions/TimeFly.lua` — BeamNG client extension that applies incoming state (single canonical file)
 - `.github/workflows/release.yml` — CI release packaging + GitHub Release publishing
 - `README.md` — user-facing install/config/commands
@@ -97,10 +97,10 @@ zip -r ../TimeFly_client.zip lua/ scripts/
 1. Build final server install archive:
 
 ```sh
-mkdir -p release_build/Resources/Server/TimeFly
+mkdir -p release_build/Resources/Server/TimeFlyS
 mkdir -p release_build/Resources/Client
-cp Resources/Server/TimeFly/main.lua release_build/Resources/Server/TimeFly/
-cp Resources/Server/TimeFly/config.lua release_build/Resources/Server/TimeFly/
+cp Resources/Server/TimeFlyS/main.lua release_build/Resources/Server/TimeFlyS/
+cp Resources/Server/TimeFlyS/config.lua release_build/Resources/Server/TimeFlyS/
 cp Resources/Client/TimeFly_client.zip release_build/Resources/Client/TimeFly.zip
 cd release_build
 zip -r ../TimeFly.zip Resources/

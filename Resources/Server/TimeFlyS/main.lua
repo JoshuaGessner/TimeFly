@@ -8,7 +8,8 @@ local ticksSinceSync = 0
 local warnedSyncSend = false
 local warnedConfigLoad = false
 
-local CONFIG_PATH = "Resources/Server/TimeFly/config.lua"
+local DEFAULT_CONFIG_PATH = "Resources/Server/TimeFlyS/config.lua"
+local CONFIG_PATH = DEFAULT_CONFIG_PATH
 local CONFIG_DEFAULTS = {
     syncInterval = 30,
     dayLength = 1200,
@@ -18,6 +19,30 @@ local CONFIG_DEFAULTS = {
     gravity = -9.81,
     adminList = {},
 }
+
+local function resolveConfigPath()
+    local resolvedPath = nil
+
+    if debug and type(debug.getinfo) == "function" then
+        local info = debug.getinfo(1, "S")
+        if info and type(info.source) == "string" then
+            local sourcePath = info.source
+            if sourcePath:sub(1, 1) == "@" then
+                sourcePath = sourcePath:sub(2)
+            end
+            local scriptDir = sourcePath:match("^(.*[/\\])")
+            if scriptDir then
+                resolvedPath = scriptDir .. "config.lua"
+            end
+        end
+    end
+
+    if resolvedPath and resolvedPath ~= "" then
+        CONFIG_PATH = resolvedPath
+    else
+        CONFIG_PATH = DEFAULT_CONFIG_PATH
+    end
+end
 
 -- ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -418,6 +443,7 @@ end
 
 -- ─── Startup ─────────────────────────────────────────────────────────────────
 
+resolveConfigPath()
 loadConfig()
 initState()
 
