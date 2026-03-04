@@ -5,8 +5,37 @@
 local config = {}
 local timeState = {}
 local ticksSinceSync = 0
+local warnedJsonEncode = false
+local warnedJsonDecode = false
+local warnedSyncSend = false
+
+local activeJsonEncode = nil
+local activeJsonDecode = nil
+local jsonEncodeBackend = "fallback"
+local jsonDecodeBackend = "unavailable"
+local encodeJson
 
 local CONFIG_PATH = "Resources/Server/TimeFly/config.json"
+
+-- ─── JSON backend selection + wrappers ───────────────────────────────────────
+
+local function detectJsonBackends()
+    if MP and type(MP.JsonEncode) == "function" then
+        activeJsonEncode = MP.JsonEncode
+        jsonEncodeBackend = "MP.JsonEncode"
+    elseif type(_G.jsonEncode) == "function" then
+        activeJsonEncode = _G.jsonEncode
+        jsonEncodeBackend = "jsonEncode"
+    end
+
+    if MP and type(MP.JsonDecode) == "function" then
+        activeJsonDecode = MP.JsonDecode
+        jsonDecodeBackend = "MP.JsonDecode"
+    elseif type(_G.jsonDecode) == "function" then
+        activeJsonDecode = _G.jsonDecode
+        jsonDecodeBackend = "jsonDecode"
+    end
+end
 
 -- ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -15,9 +44,17 @@ local function loadConfig()
     if file then
         local content = file:read("*all")
         file:close()
-        local ok, decoded = pcall(MP.JsonDecode, content)
-        if ok and decoded then
-            config = decoded
+        if activeJsonDecode then
+            local ok, decoded = pcall(activeJsonDecode, content)
+            if ok and type(decoded) == "table" then
+                config = decoded
+            elseif not warnedJsonDecode then
+                print("[TimeFly] WARNING: Could not decode config with " .. jsonDecodeBackend .. "; using defaults.")
+                warnedJsonDecode = true
+            end
+        elseif not warnedJsonDecode then
+            print("[TimeFly] WARNING: No JSON decoder available; using defaults.")
+            warnedJsonDecode = true
         end
     end
     -- Apply defaults for any missing fields
@@ -41,7 +78,7 @@ end
 local function saveConfig()
     local file = io.open(CONFIG_PATH, "w")
     if file then
-        file:write(jsonEncode(config))
+        file:write(encodeJson(config))
         file:close()
     else
         print("[TimeFly] WARNING: Could not write config to " .. CONFIG_PATH)
@@ -57,10 +94,7 @@ local _jsonEscape = {
     ['\b'] = '\\b',  ['\f'] = '\\f',
     ['\n'] = '\\n',  ['\r'] = '\\r', ['\t'] = '\\t',
 }
-local function jsonEncode(val)
-    if type(MP.JsonEncode) == "function" then
-        return MP.JsonEncode(val)
-    end
+local function fallbackJsonEncode(val)
     local t = type(val)
     if t == "number" then
         return string.format("%.10g", val)
@@ -72,7 +106,7 @@ local function jsonEncode(val)
         if #val > 0 then
             local parts = {}
             for _, v in ipairs(val) do
-                table.insert(parts, jsonEncode(v))
+                table.insert(parts, fallbackJsonEncode(v))
             end
             return "[" .. table.concat(parts, ",") .. "]"
         else
@@ -81,12 +115,25 @@ local function jsonEncode(val)
             table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
             local parts = {}
             for _, k in ipairs(keys) do
-                table.insert(parts, '"' .. tostring(k) .. '":' .. jsonEncode(val[k]))
+                table.insert(parts, '"' .. tostring(k) .. '":' .. fallbackJsonEncode(val[k]))
             end
             return "{" .. table.concat(parts, ",") .. "}"
         end
     end
     return "null"
+end
+
+encodeJson = function(val)
+    if activeJsonEncode then
+        local ok, encoded = pcall(activeJsonEncode, val)
+        if ok and type(encoded) == "string" then
+            return encoded
+        elseif not warnedJsonEncode then
+            print("[TimeFly] WARNING: " .. jsonEncodeBackend .. " failed; falling back to internal encoder.")
+            warnedJsonEncode = true
+        end
+    end
+    return fallbackJsonEncode(val)
 end
 
 
@@ -125,7 +172,7 @@ end
 
 -- Build the JSON payload that clients receive on each sync
 local function buildPayload()
-    return jsonEncode({
+    return encodeJson({
         time       = timeState.time,
         dayLength  = timeState.dayLength,
         frozen     = timeState.frozen,
@@ -136,12 +183,16 @@ end
 
 -- Send the current environment state to one player, or all when playerID == -1
 local function syncPlayer(playerID)
-    MP.TriggerClientEvent(playerID, "TimeFly_sync", buildPayload())
+    local ok, err = pcall(MP.TriggerClientEvent, playerID, "TimeFly_sync", buildPayload())
+    if not ok and not warnedSyncSend then
+        print("[TimeFly] WARNING: Failed to trigger TimeFly_sync: " .. tostring(err))
+        warnedSyncSend = true
+    end
 end
 
 local function syncAll()
-    syncPlayer(-1)
     ticksSinceSync = 0
+    syncPlayer(-1)
 end
 
 -- ─── Event handlers (must be global for MP.RegisterEvent) ────────────────────
@@ -345,6 +396,7 @@ end
 
 -- ─── Startup ─────────────────────────────────────────────────────────────────
 
+detectJsonBackends()
 loadConfig()
 initState()
 
@@ -355,4 +407,6 @@ MP.RegisterEvent("TimeFly_tick",    "TimeFly_onTick")
 
 print("[TimeFly] Loaded. Starting time: " .. timeToHHMM(timeState.time) ..
       " | Day length: " .. timeState.dayLength .. "s" ..
-      " | Frozen: " .. tostring(timeState.frozen))
+    " | Frozen: " .. tostring(timeState.frozen) ..
+    " | JSON encode: " .. jsonEncodeBackend ..
+    " | JSON decode: " .. jsonDecodeBackend)

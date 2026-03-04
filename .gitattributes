@@ -1,0 +1,4 @@
+* text=auto
+
+# Keep archive artifacts binary if they ever appear
+*.zip binary
