@@ -13,6 +13,7 @@ local missionActive   = false
 local fogWarnedOnce   = false
 local gravWarnedOnce  = false
 local syncDecodeWarned = false
+local syncReceiveLogged = false
 
 local function decodePayload(rawData)
     if type(rawData) ~= "string" then return nil end
@@ -106,7 +107,12 @@ local function onTimeFlySync(rawData)
         return
     end
 
-    if missionActive then
+    if not syncReceiveLogged then
+        print("[TimeFly] Received first TimeFly_sync payload")
+        syncReceiveLogged = true
+    end
+
+    if missionActive or core_environment then
         applyState(data)
     else
         -- Mission not yet loaded; cache and apply once the map is ready
@@ -117,6 +123,10 @@ end
 -- ─── BeamNG extension lifecycle ──────────────────────────────────────────────
 
 function M.onExtensionLoaded()
+    if type(AddEventHandler) == "function" then
+        AddEventHandler("TimeFly_sync", onTimeFlySync)
+        print("[TimeFly] Registered AddEventHandler for TimeFly_sync")
+    end
     print("[TimeFly] Client extension ready")
 end
 
