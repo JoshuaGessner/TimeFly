@@ -16,7 +16,7 @@ The server is authoritative. Clients only apply state received from the server.
 
 - `Resources/Server/TimeFly/main.lua` — BeamMP server plugin (authority + admin chat commands)
 - `Resources/Server/TimeFly/config.lua` — runtime defaults and admin list
-- `Resources/Client/TimeFly/lua/ge/extensions/TimeFly.lua` — BeamNG client extension that applies incoming state
+- `Resources/Client/TimeFly/lua/ge/extensions/TimeFly.lua` — BeamNG client extension that applies incoming state (single canonical file)
 - `.github/workflows/release.yml` — CI release packaging + GitHub Release publishing
 - `README.md` — user-facing install/config/commands
 
