@@ -12,6 +12,7 @@ local pendingState    = nil   -- state received before a map was loaded
 local missionActive   = false
 local fogWarnedOnce   = false
 local gravWarnedOnce  = false
+local timeWarnedOnce  = false
 local syncDecodeWarned = false
 local syncReceiveLogged = false
 
@@ -46,12 +47,35 @@ end
 -- ─── Apply helpers ────────────────────────────────────────────────────────────
 
 local function applyTimeOfDay(state)
-    if not core_environment then return end
-    core_environment.setTimeOfDay({
-        time      = state.time,
-        play      = not state.frozen,
-        dayLength = state.dayLength,
-    })
+    local applied = false
+
+    if core_environment and core_environment.setTimeOfDay then
+        local ok, err = pcall(core_environment.setTimeOfDay, {
+            time = state.time,
+            play = not state.frozen,
+            dayLength = state.dayLength,
+        })
+        if ok then
+            applied = true
+        elseif not timeWarnedOnce then
+            print("[TimeFly] Warning: core_environment.setTimeOfDay failed: " .. tostring(err))
+            timeWarnedOnce = true
+        end
+    end
+
+    if not applied and scenetree and scenetree.tod then
+        local ok, err = pcall(function()
+            scenetree.tod.time = state.time
+            scenetree.tod.dayLength = state.dayLength
+            if scenetree.tod.setPlay then
+                scenetree.tod:setPlay(not state.frozen)
+            end
+        end)
+        if not ok and not timeWarnedOnce then
+            print("[TimeFly] Warning: scenetree.tod time apply failed: " .. tostring(err))
+            timeWarnedOnce = true
+        end
+    end
 end
 
 local function applyFog(state)
@@ -78,7 +102,11 @@ local function applyGravity(state)
     if state.gravity == nil then return end
     -- core_environment.setGravity is available in BeamNG 0.28+
     if core_environment and core_environment.setGravity then
-        core_environment.setGravity(state.gravity)
+        local ok, err = pcall(core_environment.setGravity, state.gravity)
+        if not ok and not gravWarnedOnce then
+            print("[TimeFly] Warning: could not apply gravity via core_environment.setGravity: " .. tostring(err))
+            gravWarnedOnce = true
+        end
     elseif be then
         -- Gravity vector: BeamNG uses Z-up world space
         local ok, err = pcall(be.setGravity, be, 0, 0, state.gravity)
