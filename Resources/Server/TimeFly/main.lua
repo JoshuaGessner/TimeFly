@@ -15,7 +15,7 @@ local function loadConfig()
     if file then
         local content = file:read("*all")
         file:close()
-        local ok, decoded = pcall(jsonDecode, content)
+        local ok, decoded = pcall(MP.JsonDecode, content)
         if ok and decoded then
             config = decoded
         end
@@ -41,7 +41,7 @@ end
 local function saveConfig()
     local file = io.open(CONFIG_PATH, "w")
     if file then
-        file:write(jsonEncode(config))
+        file:write(MP.JsonEncode(config))
         file:close()
     else
         print("[TimeFly] WARNING: Could not write config to " .. CONFIG_PATH)
@@ -85,7 +85,7 @@ end
 
 -- Build the JSON payload that clients receive on each sync
 local function buildPayload()
-    return jsonEncode({
+    return MP.JsonEncode({
         time       = timeState.time,
         dayLength  = timeState.dayLength,
         frozen     = timeState.frozen,
