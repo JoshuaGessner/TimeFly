@@ -41,7 +41,7 @@ end
 local function saveConfig()
     local file = io.open(CONFIG_PATH, "w")
     if file then
-        file:write(MP.JsonEncode(config))
+        file:write(jsonEncode(config))
         file:close()
     else
         print("[TimeFly] WARNING: Could not write config to " .. CONFIG_PATH)
@@ -49,6 +49,46 @@ local function saveConfig()
 end
 
 -- ─── Helpers ─────────────────────────────────────────────────────────────────
+
+-- MP.JsonEncode may be absent in some BeamMP builds; fall back to a simple
+-- recursive serialiser that covers all types used in this plugin.
+local _jsonEscape = {
+    ['\\'] = '\\\\', ['"'] = '\\"',
+    ['\b'] = '\\b',  ['\f'] = '\\f',
+    ['\n'] = '\\n',  ['\r'] = '\\r', ['\t'] = '\\t',
+}
+local function jsonEncode(val)
+    if type(MP.JsonEncode) == "function" then
+        return MP.JsonEncode(val)
+    end
+    local t = type(val)
+    if t == "number" then
+        return string.format("%.10g", val)
+    elseif t == "boolean" then
+        return tostring(val)
+    elseif t == "string" then
+        return '"' .. val:gsub('[\\"\b\f\n\r\t]', _jsonEscape) .. '"'
+    elseif t == "table" then
+        if #val > 0 then
+            local parts = {}
+            for _, v in ipairs(val) do
+                table.insert(parts, jsonEncode(v))
+            end
+            return "[" .. table.concat(parts, ",") .. "]"
+        else
+            local keys = {}
+            for k in pairs(val) do table.insert(keys, k) end
+            table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+            local parts = {}
+            for _, k in ipairs(keys) do
+                table.insert(parts, '"' .. tostring(k) .. '":' .. jsonEncode(val[k]))
+            end
+            return "{" .. table.concat(parts, ",") .. "}"
+        end
+    end
+    return "null"
+end
+
 
 -- Returns true when the named player is in config.adminList
 local function isAdmin(playerID)
@@ -85,7 +125,7 @@ end
 
 -- Build the JSON payload that clients receive on each sync
 local function buildPayload()
-    return MP.JsonEncode({
+    return jsonEncode({
         time       = timeState.time,
         dayLength  = timeState.dayLength,
         frozen     = timeState.frozen,
