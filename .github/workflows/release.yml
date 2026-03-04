@@ -33,7 +33,7 @@ jobs:
       - name: Build client zip
         run: |
           cd Resources/Client/TimeFly
-          zip -r ../TimeFly_client.zip lua/
+          zip -r ../TimeFly_client.zip lua/ scripts/
 
       - name: Build release zip
         run: |

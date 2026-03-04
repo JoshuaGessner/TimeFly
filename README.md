@@ -111,7 +111,7 @@ Resources/
       config.lua      ← Server configuration
   Client/
     TimeFly/          ← Source for the client zip (see below)
-      lua/ge/extensions/BeamMP/
+      lua/ge/extensions/
         TimeFly.lua   ← BeamNG.drive client extension
 
 TimeFly.zip           ← Release archive (extract into BeamMP server root)
