@@ -253,17 +253,11 @@ function TimeFly_onChatMessage(playerID, playerName, message)
 
     -- ── Help (everyone) ──────────────────────────────────────────────────────
     if cmd == "/timefly" then
-        MP.SendChatMessage(playerID,
-            "[TimeFly] Commands:\n" ..
-            "  /time [HH:MM|0-1]       - Get or set time of day\n" ..
-            "  /freeze                  - Freeze time          (admin)\n" ..
-            "  /unfreeze                - Unfreeze time        (admin)\n" ..
-            "  /dayspeed <secs>         - Seconds per in-game day (admin)\n" ..
-            "  /fog <0-1>               - Fog density          (admin)\n" ..
-            "  /gravity <m/s²>          - Gravity              (admin)\n" ..
-            "  /addadmin <playerName>   - Grant admin rights   (admin)\n" ..
-            "  /removeadmin <playerName> - Revoke admin rights  (admin)\n" ..
-            "  /timefly                 - Show this help")
+        MP.SendChatMessage(playerID, "[TimeFly] Commands:")
+        MP.SendChatMessage(playerID, "[TimeFly] /time (show current) | /time HH:MM or 0-1 (admin set)")
+        MP.SendChatMessage(playerID, "[TimeFly] /freeze /unfreeze /dayspeed <secs> (admin)")
+        MP.SendChatMessage(playerID, "[TimeFly] /fog <0-1> /gravity <value> (admin)")
+        MP.SendChatMessage(playerID, "[TimeFly] /addadmin <name> /removeadmin <name> (admin)")
         return 1
     end
 

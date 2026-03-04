@@ -117,10 +117,6 @@ end
 -- ─── BeamNG extension lifecycle ──────────────────────────────────────────────
 
 function M.onExtensionLoaded()
-    -- BeamMP older-style client scripts use AddEventHandler
-    if AddEventHandler then
-        AddEventHandler("TimeFly_sync", onTimeFlySync)
-    end
     print("[TimeFly] Client extension ready")
 end
 
