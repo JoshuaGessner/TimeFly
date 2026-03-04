@@ -5,137 +5,164 @@
 local config = {}
 local timeState = {}
 local ticksSinceSync = 0
-local warnedJsonEncode = false
-local warnedJsonDecode = false
 local warnedSyncSend = false
+local warnedConfigLoad = false
 
-local activeJsonEncode = nil
-local activeJsonDecode = nil
-local jsonEncodeBackend = "fallback"
-local jsonDecodeBackend = "unavailable"
-local encodeJson
-
-local CONFIG_PATH = "Resources/Server/TimeFly/config.json"
-
--- ─── JSON backend selection + wrappers ───────────────────────────────────────
-
-local function detectJsonBackends()
-    if MP and type(MP.JsonEncode) == "function" then
-        activeJsonEncode = MP.JsonEncode
-        jsonEncodeBackend = "MP.JsonEncode"
-    elseif type(_G.jsonEncode) == "function" then
-        activeJsonEncode = _G.jsonEncode
-        jsonEncodeBackend = "jsonEncode"
-    end
-
-    if MP and type(MP.JsonDecode) == "function" then
-        activeJsonDecode = MP.JsonDecode
-        jsonDecodeBackend = "MP.JsonDecode"
-    elseif type(_G.jsonDecode) == "function" then
-        activeJsonDecode = _G.jsonDecode
-        jsonDecodeBackend = "jsonDecode"
-    end
-end
+local CONFIG_PATH = "Resources/Server/TimeFly/config.lua"
+local CONFIG_DEFAULTS = {
+    syncInterval = 30,
+    dayLength = 1200,
+    startTime = 0.0,
+    timeFrozen = false,
+    fogDensity = 0.0,
+    gravity = -9.81,
+    adminList = {},
+}
 
 -- ─── Configuration ───────────────────────────────────────────────────────────
 
-local function loadConfig()
-    local file = io.open(CONFIG_PATH, "r")
-    if file then
-        local content = file:read("*all")
-        file:close()
-        if activeJsonDecode then
-            local ok, decoded = pcall(activeJsonDecode, content)
-            if ok and type(decoded) == "table" then
-                config = decoded
-            elseif not warnedJsonDecode then
-                print("[TimeFly] WARNING: Could not decode config with " .. jsonDecodeBackend .. "; using defaults.")
-                warnedJsonDecode = true
-            end
-        elseif not warnedJsonDecode then
-            print("[TimeFly] WARNING: No JSON decoder available; using defaults.")
-            warnedJsonDecode = true
-        end
-    end
-    -- Apply defaults for any missing fields
-    config.syncInterval = config.syncInterval or 30
-    config.dayLength    = config.dayLength    or 1200
-    config.startTime    = config.startTime    or 0.0
-    config.timeFrozen   = config.timeFrozen   or false
-    config.fogDensity   = config.fogDensity   or 0.0
-    config.gravity      = config.gravity      or -9.81
-    config.adminList    = config.adminList    or {}
+local function copyDefaults()
+    return {
+        syncInterval = CONFIG_DEFAULTS.syncInterval,
+        dayLength = CONFIG_DEFAULTS.dayLength,
+        startTime = CONFIG_DEFAULTS.startTime,
+        timeFrozen = CONFIG_DEFAULTS.timeFrozen,
+        fogDensity = CONFIG_DEFAULTS.fogDensity,
+        gravity = CONFIG_DEFAULTS.gravity,
+        adminList = {},
+    }
 end
 
-local function initState()
-    timeState.time      = config.startTime
-    timeState.dayLength = config.dayLength
-    timeState.frozen    = config.timeFrozen
-    timeState.fogDensity = config.fogDensity
-    timeState.gravity   = config.gravity
+local function normalizeConfig(loaded)
+    local normalized = copyDefaults()
+
+    if type(loaded) == "table" then
+        for key, value in pairs(loaded) do
+            normalized[key] = value
+        end
+    end
+
+    normalized.syncInterval = tonumber(normalized.syncInterval) or CONFIG_DEFAULTS.syncInterval
+    if normalized.syncInterval < 1 then normalized.syncInterval = 1 end
+
+    normalized.dayLength = tonumber(normalized.dayLength) or CONFIG_DEFAULTS.dayLength
+    if normalized.dayLength <= 0 then normalized.dayLength = CONFIG_DEFAULTS.dayLength end
+
+    normalized.startTime = tonumber(normalized.startTime) or CONFIG_DEFAULTS.startTime
+    if normalized.startTime < 0 or normalized.startTime > 1 then
+        normalized.startTime = CONFIG_DEFAULTS.startTime
+    end
+
+    normalized.timeFrozen = (normalized.timeFrozen == true)
+
+    normalized.fogDensity = tonumber(normalized.fogDensity) or CONFIG_DEFAULTS.fogDensity
+    if normalized.fogDensity < 0 then normalized.fogDensity = 0 end
+    if normalized.fogDensity > 1 then normalized.fogDensity = 1 end
+
+    normalized.gravity = tonumber(normalized.gravity) or CONFIG_DEFAULTS.gravity
+
+    local admins = {}
+    if type(normalized.adminList) == "table" then
+        for _, name in ipairs(normalized.adminList) do
+            if type(name) == "string" and name ~= "" then
+                admins[#admins + 1] = name
+            end
+        end
+    end
+    normalized.adminList = admins
+
+    return normalized
+end
+
+local function escapeLuaString(value)
+    return value
+        :gsub("\\", "\\\\")
+        :gsub("\n", "\\n")
+        :gsub("\r", "\\r")
+        :gsub("\t", "\\t")
+        :gsub('"', '\\"')
+end
+
+local function serializeLuaValue(value, indentLevel)
+    local valueType = type(value)
+    if valueType == "number" then
+        return string.format("%.10g", value)
+    elseif valueType == "boolean" then
+        return tostring(value)
+    elseif valueType == "string" then
+        return '"' .. escapeLuaString(value) .. '"'
+    elseif valueType ~= "table" then
+        return "nil"
+    end
+
+    local indent = string.rep("    ", indentLevel)
+    local nextIndent = string.rep("    ", indentLevel + 1)
+
+    if #value > 0 then
+        local parts = {"{"}
+        for _, item in ipairs(value) do
+            parts[#parts + 1] = nextIndent .. serializeLuaValue(item, indentLevel + 1) .. ","
+        end
+        parts[#parts + 1] = indent .. "}"
+        return table.concat(parts, "\n")
+    end
+
+    local keys = {}
+    for key in pairs(value) do
+        keys[#keys + 1] = key
+    end
+    table.sort(keys, function(a, b)
+        return tostring(a) < tostring(b)
+    end)
+
+    local parts = {"{"}
+    for _, key in ipairs(keys) do
+        local keyText
+        if type(key) == "string" and key:match("^[%a_][%w_]*$") then
+            keyText = key
+        else
+            keyText = "[" .. serializeLuaValue(key, indentLevel + 1) .. "]"
+        end
+        parts[#parts + 1] = nextIndent .. keyText .. " = " .. serializeLuaValue(value[key], indentLevel + 1) .. ","
+    end
+    parts[#parts + 1] = indent .. "}"
+    return table.concat(parts, "\n")
 end
 
 local function saveConfig()
     local file = io.open(CONFIG_PATH, "w")
-    if file then
-        file:write(encodeJson(config))
-        file:close()
-    else
+    if not file then
         print("[TimeFly] WARNING: Could not write config to " .. CONFIG_PATH)
+        return
     end
+
+    local content = "return " .. serializeLuaValue(config, 0) .. "\n"
+    file:write(content)
+    file:close()
+end
+
+local function loadConfig()
+    local loadedConfig = nil
+    local ok, result = pcall(dofile, CONFIG_PATH)
+    if ok and type(result) == "table" then
+        loadedConfig = result
+    elseif not warnedConfigLoad then
+        print("[TimeFly] WARNING: Could not load " .. CONFIG_PATH .. "; using defaults.")
+        warnedConfigLoad = true
+    end
+
+    config = normalizeConfig(loadedConfig)
+end
+
+local function initState()
+    timeState.time = config.startTime
+    timeState.dayLength = config.dayLength
+    timeState.frozen = config.timeFrozen
+    timeState.fogDensity = config.fogDensity
+    timeState.gravity = config.gravity
 end
 
 -- ─── Helpers ─────────────────────────────────────────────────────────────────
-
--- MP.JsonEncode may be absent in some BeamMP builds; fall back to a simple
--- recursive serialiser that covers all types used in this plugin.
-local _jsonEscape = {
-    ['\\'] = '\\\\', ['"'] = '\\"',
-    ['\b'] = '\\b',  ['\f'] = '\\f',
-    ['\n'] = '\\n',  ['\r'] = '\\r', ['\t'] = '\\t',
-}
-local function fallbackJsonEncode(val)
-    local t = type(val)
-    if t == "number" then
-        return string.format("%.10g", val)
-    elseif t == "boolean" then
-        return tostring(val)
-    elseif t == "string" then
-        return '"' .. val:gsub('[\\"\b\f\n\r\t]', _jsonEscape) .. '"'
-    elseif t == "table" then
-        if #val > 0 then
-            local parts = {}
-            for _, v in ipairs(val) do
-                table.insert(parts, fallbackJsonEncode(v))
-            end
-            return "[" .. table.concat(parts, ",") .. "]"
-        else
-            local keys = {}
-            for k in pairs(val) do table.insert(keys, k) end
-            table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
-            local parts = {}
-            for _, k in ipairs(keys) do
-                table.insert(parts, '"' .. tostring(k) .. '":' .. fallbackJsonEncode(val[k]))
-            end
-            return "{" .. table.concat(parts, ",") .. "}"
-        end
-    end
-    return "null"
-end
-
-encodeJson = function(val)
-    if activeJsonEncode then
-        local ok, encoded = pcall(activeJsonEncode, val)
-        if ok and type(encoded) == "string" then
-            return encoded
-        elseif not warnedJsonEncode then
-            print("[TimeFly] WARNING: " .. jsonEncodeBackend .. " failed; falling back to internal encoder.")
-            warnedJsonEncode = true
-        end
-    end
-    return fallbackJsonEncode(val)
-end
-
 
 -- Returns true when the named player is in config.adminList
 local function isAdmin(playerID)
@@ -162,7 +189,7 @@ end
 -- Returns nil when the inputs are non-numeric or out of range.
 local function HHMMToTime(h, m)
     local hours = tonumber(h)
-    local mins  = tonumber(m)
+    local mins = tonumber(m)
     if not hours or not mins then return nil end
     if hours < 0 or hours > 23 or mins < 0 or mins > 59 then
         return nil
@@ -170,15 +197,15 @@ local function HHMMToTime(h, m)
     return ((hours + mins / 60 - 12) % 24) / 24
 end
 
--- Build the JSON payload that clients receive on each sync
+-- Build the payload that clients receive on each sync
+-- Format: time|dayLength|frozen|fogDensity|gravity
 local function buildPayload()
-    return encodeJson({
-        time       = timeState.time,
-        dayLength  = timeState.dayLength,
-        frozen     = timeState.frozen,
-        fogDensity = timeState.fogDensity,
-        gravity    = timeState.gravity,
-    })
+    return string.format("%.10g|%.10g|%d|%.10g|%.10g",
+        timeState.time,
+        timeState.dayLength,
+        timeState.frozen and 1 or 0,
+        timeState.fogDensity,
+        timeState.gravity)
 end
 
 -- Send the current environment state to one player, or all when playerID == -1
@@ -396,7 +423,6 @@ end
 
 -- ─── Startup ─────────────────────────────────────────────────────────────────
 
-detectJsonBackends()
 loadConfig()
 initState()
 
@@ -407,6 +433,5 @@ MP.RegisterEvent("TimeFly_tick",    "TimeFly_onTick")
 
 print("[TimeFly] Loaded. Starting time: " .. timeToHHMM(timeState.time) ..
       " | Day length: " .. timeState.dayLength .. "s" ..
-    " | Frozen: " .. tostring(timeState.frozen) ..
-    " | JSON encode: " .. jsonEncodeBackend ..
-    " | JSON decode: " .. jsonDecodeBackend)
+      " | Frozen: " .. tostring(timeState.frozen) ..
+      " | Config: " .. CONFIG_PATH)

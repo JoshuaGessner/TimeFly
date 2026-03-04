@@ -10,6 +10,35 @@ local pendingState    = nil   -- state received before a map was loaded
 local missionActive   = false
 local fogWarnedOnce   = false
 local gravWarnedOnce  = false
+local syncDecodeWarned = false
+
+local function decodePayload(rawData)
+    if type(rawData) ~= "string" then return nil end
+
+    local parts = {}
+    for token in rawData:gmatch("([^|]+)") do
+        parts[#parts + 1] = token
+    end
+
+    if #parts ~= 5 then return nil end
+
+    local time = tonumber(parts[1])
+    local dayLength = tonumber(parts[2])
+    local frozenToken = parts[3]
+    local fogDensity = tonumber(parts[4])
+    local gravity = tonumber(parts[5])
+    if not time or not dayLength or not fogDensity or not gravity then
+        return nil
+    end
+
+    return {
+        time = time,
+        dayLength = dayLength,
+        frozen = (frozenToken == "1"),
+        fogDensity = fogDensity,
+        gravity = gravity,
+    }
+end
 
 -- ─── Apply helpers ────────────────────────────────────────────────────────────
 
@@ -66,8 +95,14 @@ end
 -- ─── Server event handler ─────────────────────────────────────────────────────
 
 local function onTimeFlySync(rawData)
-    local ok, data = pcall(jsonDecode, rawData)
-    if not ok or type(data) ~= "table" then return end
+    local data = decodePayload(rawData)
+    if type(data) ~= "table" then
+        if not syncDecodeWarned then
+            print("[TimeFly] Warning: could not decode TimeFly_sync payload")
+            syncDecodeWarned = true
+        end
+        return
+    end
 
     if missionActive then
         applyState(data)

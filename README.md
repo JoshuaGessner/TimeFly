@@ -1,5 +1,6 @@
 # TimeFly
-An environment sync mod for BeamMP servers.  
+
+An environment sync mod for BeamMP servers.
 TimeFly keeps every player's day/night cycle in lock-step and lets admins
 control time of day, fog, and gravity from the in-game chat.
 
@@ -8,7 +9,7 @@ control time of day, fog, and gravity from the in-game chat.
 ## Features
 
 | Feature | Description |
-|---|---|
+| --- | --- |
 | **Day/night sync** | All players share the same time of day at all times |
 | **Configurable day speed** | Choose how many real seconds equal one full in-game day |
 | **Time freeze** | Admins can pause or resume the clock |
@@ -22,44 +23,46 @@ control time of day, fog, and gravity from the in-game chat.
 ## Installation
 
 1. Download `TimeFly.zip` from the [latest release](../../releases/latest).
-2. Extract the zip into your BeamMP server's root folder.  
-   The archive mirrors the `Resources/` layout, so the files will land in the
-   correct locations automatically:
-   - `Resources/Server/TimeFly/main.lua`
-   - `Resources/Server/TimeFly/config.json`
-   - `Resources/Client/TimeFly.zip` *(client mod — distributed to players automatically by BeamMP)*
-3. Edit `Resources/Server/TimeFly/config.json` to set your preferred defaults
-   (see [Configuration](#configuration) below).
-4. Restart the BeamMP server.  
-   You should see `[TimeFly] Loaded.` in the server log.
+1. Extract the zip into your BeamMP server's root folder.
+
+    The archive mirrors the `Resources/` layout, so the files will land in the correct locations automatically:
+
+    - `Resources/Server/TimeFly/main.lua`
+    - `Resources/Server/TimeFly/config.lua`
+    - `Resources/Client/TimeFly.zip` *(client mod — distributed to players automatically by BeamMP)*
+
+1. Edit `Resources/Server/TimeFly/config.lua` to set your preferred defaults (see [Configuration](#configuration) below).
+1. Restart the BeamMP server.
+
+    You should see `[TimeFly] Loaded.` in the server log.
 
 ---
 
 ## Configuration
 
-`Resources/Server/TimeFly/config.json`
+`Resources/Server/TimeFly/config.lua`
 
 | Key | Type | Default | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `syncInterval` | integer | `30` | How often (in seconds) to broadcast the current state to all players |
 | `dayLength` | integer | `1200` | How many real-world seconds make up one full in-game day |
 | `startTime` | float | `0.0` | Starting time of day (0.0 = noon, 0.5 = midnight — see [Time values](#time-values)) |
 | `timeFrozen` | boolean | `false` | Start with the clock frozen |
 | `fogDensity` | float | `0.0` | Starting fog density (0 = none, 1 = maximum) |
 | `gravity` | float | `-9.81` | Starting gravity in m/s² |
-| `adminList` | array | `[]` | List of player **display names** that may use admin commands |
+| `adminList` | array | `{}` | List of player **display names** that may use admin commands |
 
 **Example config:**
 
-```json
-{
-    "syncInterval": 30,
-    "dayLength": 600,
-    "startTime": 0.0,
-    "timeFrozen": false,
-    "fogDensity": 0.0,
-    "gravity": -9.81,
-    "adminList": ["YourUsername", "FriendUsername"]
+```lua
+return {
+    syncInterval = 30,
+    dayLength = 600,
+    startTime = 0.0,
+    timeFrozen = false,
+    fogDensity = 0.0,
+    gravity = -9.81,
+    adminList = {"YourUsername", "FriendUsername"},
 }
 ```
 
@@ -70,7 +73,7 @@ control time of day, fog, and gravity from the in-game chat.
 All commands are typed in the in-game BeamMP chat.
 
 | Command | Who | Description |
-|---|---|---|
+| --- | --- | --- |
 | `/timefly` | everyone | Show command help |
 | `/time` | everyone | Display the current time |
 | `/time HH:MM` | admin | Set time using 24-hour clock (e.g. `/time 06:30`) |
@@ -90,7 +93,7 @@ All commands are typed in the in-game BeamMP chat.
 BeamNG.drive uses the following time-of-day convention:
 
 | Value | Real time |
-|---|---|
+| --- | --- |
 | `0.0` | 12:00 (noon) |
 | `0.25` | 18:00 (6 PM) |
 | `0.5` | 00:00 (midnight) |
@@ -100,28 +103,28 @@ BeamNG.drive uses the following time-of-day convention:
 
 ## Repository structure
 
-```
+```text
 Resources/
   Server/
     TimeFly/
       main.lua        ← BeamMP server-side Lua plugin
-      config.json     ← Server configuration
+      config.lua      ← Server configuration
   Client/
     TimeFly/          ← Source for the client zip (see below)
       lua/ge/extensions/BeamMP/
         TimeFly.lua   ← BeamNG.drive client extension
 
-TimeFly.zip           ← Release archive (extract into your BeamMP server root)
+TimeFly.zip           ← Release archive (extract into BeamMP server root)
 ```
 
 The release `TimeFly.zip` contains:
 
-```
+```text
 Resources/
   Server/
     TimeFly/
       main.lua
-      config.json
+      config.lua
   Client/
     TimeFly.zip       ← Pre-built client archive for BeamMP auto-distribution
 ```

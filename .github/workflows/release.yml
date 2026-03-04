@@ -40,7 +40,7 @@ jobs:
           mkdir -p release_build/Resources/Server/TimeFly
           mkdir -p release_build/Resources/Client
           cp Resources/Server/TimeFly/main.lua   release_build/Resources/Server/TimeFly/
-          cp Resources/Server/TimeFly/config.json release_build/Resources/Server/TimeFly/
+          cp Resources/Server/TimeFly/config.lua release_build/Resources/Server/TimeFly/
           cp Resources/Client/TimeFly_client.zip  release_build/Resources/Client/TimeFly.zip
           cd release_build
           zip -r ../TimeFly.zip Resources/
@@ -55,7 +55,7 @@ jobs:
 
             1. Download `TimeFly.zip` below.
             2. Extract into your BeamMP server's root folder.
-            3. Edit `Resources/Server/TimeFly/config.json` with your settings.
+            3. Edit `Resources/Server/TimeFly/config.lua` with your settings.
             4. Restart the BeamMP server — you should see `[TimeFly] Loaded.` in the log.
 
             See the [README](https://github.com/${{ github.repository }}#readme) for full documentation.
